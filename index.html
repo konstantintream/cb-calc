@@ -12,8 +12,7 @@
     .card { width:min(640px,92vw); box-sizing:border-box; padding:20px; border-radius:12px; }
     label { display:block; margin:14px 0 6px; font-size:14px; opacity:.9; }
     input { width:100%; font-size:16px; padding:12px; border:1px solid rgba(0,0,0,.15); border-radius:8px; box-sizing:border-box; }
-    .row { display:grid; grid-template-columns: 1fr; gap:12px; margin-top:16px; }
-    button { width:100%; padding:12px; font-size:16px; border:none; border-radius:10px; cursor:pointer; }
+    button { width:100%; margin-top:16px; padding:12px; font-size:16px; border:none; border-radius:10px; cursor:pointer; }
     .hint { margin-top:8px; font-size:13px; opacity:.8; }
   </style>
 </head>
@@ -28,26 +27,21 @@
       <label for="f2">Поле 2</label>
       <input id="f2" type="text" placeholder="Введите значение" />
 
-      <div class="row">
-        <button id="next">Далее</button>
-        <!-- Кнопка ниже НЕ обязательна. Нужна только если реально хочешь продублировать ответ в чат -->
-        <button id="send" style="display:none; opacity:.9">Отправить в чат</button>
-      </div>
+      <button id="next">Далее</button>
 
       <label for="result" style="margin-top:18px">Результат</label>
       <input id="result" type="text" placeholder="Здесь появится ответ" readonly />
-      <div class="hint">“Далее” показывает ответ тут. “Отправить в чат” — по желанию.</div>
+      <div class="hint">Ответ формируется как конкатенация двух верхних полей (по просьбе).</div>
     </div>
   </div>
 
   <script>
     const tg = window.Telegram?.WebApp;
-
-    // Инициализация темы/цветов/режима
     if (tg) {
-      tg.expand();                       // полноэкранно
-      tg.ready?.();                      // пометить как готово (новые клиенты)
-      tg.disableVerticalSwipes?.();      // чтобы не смахнуть окно жестом
+      tg.expand();
+      tg.ready?.();
+      tg.disableVerticalSwipes?.();
+
       const card = document.getElementById('card');
       const bg = tg.themeParams?.bg_color || '#ffffff';
       const txt = tg.themeParams?.text_color || '#000000';
@@ -58,52 +52,28 @@
       card.style.color = txt;
 
       const nextBtn = document.getElementById('next');
-      nextBtn.style.background = btn; nextBtn.style.color = btnTxt;
-
-      const sendBtn = document.getElementById('send');
-      sendBtn.style.background = tg.themeParams?.hint_color || '#888';
-      sendBtn.style.color = btnTxt;
+      nextBtn.style.background = btn;
+      nextBtn.style.color = btnTxt;
     }
 
     const f1 = document.getElementById('f1');
     const f2 = document.getElementById('f2');
     const result = document.getElementById('result');
     const next = document.getElementById('next');
-    const send = document.getElementById('send');
 
-    // “Далее”: только считаем и показываем внутри окна. НИКАКОГО sendData.
-    next.addEventListener('click', (ev) => {
-      ev.preventDefault();
-      const v1 = f1.value || '';
-      const v2 = f2.value || '';
-      const out = v1 + v2;
+    // НИКАКОГО sendData — только показать результат внутри окна
+    next.addEventListener('click', (e) => {
+      e.preventDefault();
+      const v1 = f1.value ?? '';
+      const v2 = f2.value ?? '';
+      const out = String(v1) + String(v2);          // конкатенация (если нужно число+число: Number(v1)+Number(v2))
       result.value = out;
 
-      // лёгкая вибрация (если доступна) и всплывающее подтверждение внутри мини-аппа
-      try { tg?.HapticFeedback?.impactOccurred?.('medium'); } catch (e) {}
+      try { tg?.HapticFeedback?.impactOccurred?.('light'); } catch(e){}
       try {
-        tg?.showPopup?.(
-          { title: 'Готово', message: `Результат: ${out}`, buttons: [{type: 'ok', text: 'ОК'}] },
-          () => {}
-        );
-      } catch (e) {}
-
-      // показать кнопку “Отправить в чат” на случай, если нужно продублировать
-      send.style.display = 'block';
-    });
-
-    // НЕОБЯЗАТЕЛЬНО: отдельная кнопка, которая уже шлёт в чат и закрывает окно
-    send.addEventListener('click', (ev) => {
-      ev.preventDefault();
-      const payload = {
-        field1: f1.value || '',
-        field2: f2.value || '',
-        result: result.value || ''
-      };
-      try {
-        // Важно: sendData приведёт к закрытию мини-аппа — это штатно.
-        tg?.sendData?.(JSON.stringify(payload));
-      } catch (e) {}
+        // Небольшая визуальная подсказка внутри окна (не обязательно)
+        tg?.showPopup?.({ title: 'Готово', message: `Результат: ${out}`, buttons: [{type:'ok', text:'ОК'}] }, ()=>{});
+      } catch(e){}
     });
   </script>
 </body>
