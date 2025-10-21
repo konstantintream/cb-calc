@@ -31,14 +31,14 @@
 
       <label for="result" style="margin-top:18px">Результат</label>
       <input id="result" type="text" placeholder="Здесь появится ответ" readonly />
-      <div class="hint">Ответ формируется как конкатенация двух верхних полей (по просьбе).</div>
+      <div class="hint">Ответ формируется как конкатенация двух верхних полей.</div>
     </div>
   </div>
 
   <script>
     const tg = window.Telegram?.WebApp;
     if (tg) {
-      tg.expand();
+      tg.expand?.();
       tg.ready?.();
       tg.disableVerticalSwipes?.();
 
@@ -47,6 +47,7 @@
       const txt = tg.themeParams?.text_color || '#000000';
       const btn = tg.themeParams?.button_color || '#2ea6ff';
       const btnTxt = tg.themeParams?.button_text_color || '#ffffff';
+
       document.body.style.background = bg;
       card.style.background = tg.themeParams?.secondary_bg_color || '#f6f6f6';
       card.style.color = txt;
@@ -61,19 +62,12 @@
     const result = document.getElementById('result');
     const next = document.getElementById('next');
 
-    // НИКАКОГО sendData — только показать результат внутри окна
     next.addEventListener('click', (e) => {
       e.preventDefault();
       const v1 = f1.value ?? '';
       const v2 = f2.value ?? '';
-      const out = String(v1) + String(v2);          // конкатенация (если нужно число+число: Number(v1)+Number(v2))
-      result.value = out;
-
+      result.value = String(v1) + String(v2);
       try { tg?.HapticFeedback?.impactOccurred?.('light'); } catch(e){}
-      try {
-        // Небольшая визуальная подсказка внутри окна (не обязательно)
-        tg?.showPopup?.({ title: 'Готово', message: `Результат: ${out}`, buttons: [{type:'ok', text:'ОК'}] }, ()=>{});
-      } catch(e){}
     });
   </script>
 </body>
