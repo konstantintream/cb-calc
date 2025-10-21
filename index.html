@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Калькулятор</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    html, body { height:100%; margin:0; padding:0; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,Arial,sans-serif; }
+    .wrap { min-height:100%; display:flex; align-items:center; justify-content:center; }
+    .card { width:min(640px,92vw); box-sizing:border-box; padding:20px; border-radius:12px; }
+    label { display:block; margin:14px 0 6px; font-size:14px; opacity:.9; }
+    input { width:100%; font-size:16px; padding:12px; border:1px solid rgba(0,0,0,.15); border-radius:8px; box-sizing:border-box; }
+    button { width:100%; margin-top:16px; padding:12px; font-size:16px; border:none; border-radius:10px; cursor:pointer; }
+    .hint { margin-top:8px; font-size:13px; opacity:.8; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card" id="card">
+      <h2 style="margin:0 0 12px">Мини-калькулятор</h2>
+      <label for="f1">Поле 1</label>
+      <input id="f1" type="text" placeholder="Введите значение" />
+      <label for="f2">Поле 2</label>
+      <input id="f2" type="text" placeholder="Введите значение" />
+      <button id="next">Далее</button>
+      <label for="result" style="margin-top:18px">Результат</label>
+      <input id="result" type="text" placeholder="Здесь появится ответ" readonly />
+      <div class="hint">Ответ формируется как конкатенация двух верхних полей.</div>
+    </div>
+  </div>
+
+  <script>
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.expand();
+      const card = document.getElementById('card');
+      const bg = tg.themeParams?.bg_color || '#ffffff';
+      const txt = tg.themeParams?.text_color || '#000000';
+      const btn = tg.themeParams?.button_color || '#2ea6ff';
+      const btnTxt = tg.themeParams?.button_text_color || '#ffffff';
+      document.body.style.background = bg;
+      card.style.background = tg.themeParams?.secondary_bg_color || '#f6f6f6';
+      card.style.color = txt;
+      const nextBtn = document.getElementById('next');
+      nextBtn.style.background = btn;
+      nextBtn.style.color = btnTxt;
+    }
+    const f1 = document.getElementById('f1');
+    const f2 = document.getElementById('f2');
+    const result = document.getElementById('result');
+    const next = document.getElementById('next');
+    next.addEventListener('click', () => {
+      const v1 = f1.value || '';
+      const v2 = f2.value || '';
+      const out = v1 + v2;
+      result.value = out;
+      try {
+        window.Telegram?.WebApp?.sendData(JSON.stringify({field1: v1, field2: v2, result: out}));
+      } catch (e) {}
+    });
+  </script>
+</body>
+</html>
