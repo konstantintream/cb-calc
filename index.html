@@ -14,21 +14,24 @@
     input { width:100%; font-size:16px; padding:12px; border:1px solid rgba(0,0,0,.15); border-radius:8px; box-sizing:border-box; }
     button { width:100%; margin-top:16px; padding:12px; font-size:16px; border:none; border-radius:10px; cursor:pointer; }
     .hint { margin-top:8px; font-size:13px; opacity:.8; }
+    .forbidden { text-align:center; padding:24px; opacity:.9; }
+    #app { display:none; }
   </style>
 </head>
 <body>
-  <div class="wrap">
+  <div id="forbidden" class="forbidden">
+    <h2>Проверка доступа…</h2>
+    <p>Если видите это сообщение более 3 секунд, попробуйте открыть из Telegram ещё раз.</p>
+  </div>
+
+  <div id="app" class="wrap">
     <div class="card" id="card">
       <h2 style="margin:0 0 12px">Мини-калькулятор</h2>
-
       <label for="f1">Поле 1</label>
       <input id="f1" type="text" placeholder="Введите значение" />
-
       <label for="f2">Поле 2</label>
       <input id="f2" type="text" placeholder="Введите значение" />
-
       <button id="next">Далее</button>
-
       <label for="result" style="margin-top:18px">Результат</label>
       <input id="result" type="text" placeholder="Здесь появится ответ" readonly />
       <div class="hint">Ответ формируется как конкатенация двух верхних полей.</div>
@@ -37,38 +40,74 @@
 
   <script>
     const tg = window.Telegram?.WebApp;
-    if (tg) {
-      tg.expand?.();
-      tg.ready?.();
-      tg.disableVerticalSwipes?.();
+    const $forbidden = document.getElementById('forbidden');
+    const $app = document.getElementById('app');
 
-      const card = document.getElementById('card');
-      const bg = tg.themeParams?.bg_color || '#ffffff';
-      const txt = tg.themeParams?.text_color || '#000000';
-      const btn = tg.themeParams?.button_color || '#2ea6ff';
-      const btnTxt = tg.themeParams?.button_text_color || '#ffffff';
-
-      document.body.style.background = bg;
-      card.style.background = tg.themeParams?.secondary_bg_color || '#f6f6f6';
-      card.style.color = txt;
-
-      const nextBtn = document.getElementById('next');
-      nextBtn.style.background = btn;
-      nextBtn.style.color = btnTxt;
+    // Функция оформления 403
+    function deny(msg) {
+      $app.style.display = 'none';
+      $forbidden.style.display = 'block';
+      $forbidden.innerHTML = `<h2>403 — доступ запрещён</h2><p>${msg || 'Откройте эту страницу из Telegram.'}</p>`;
     }
 
-    const f1 = document.getElementById('f1');
-    const f2 = document.getElementById('f2');
-    const result = document.getElementById('result');
-    const next = document.getElementById('next');
+    async function bootstrap() {
+      if (!tg || typeof tg.initData !== 'string' || !tg.initData.length) {
+        return deny('Эта страница работает только внутри Telegram WebApp.');
+      }
+      try {
+        tg.ready?.(); tg.expand?.(); tg.disableVerticalSwipes?.();
+        // Небольшая защита от зависания
+        setTimeout(() => {
+          if ($app.style.display !== 'flex') {
+            deny('Не удалось подтвердить доступ. Повторите из Telegram.');
+          }
+        }, 4000);
 
-    next.addEventListener('click', (e) => {
-      e.preventDefault();
-      const v1 = f1.value ?? '';
-      const v2 = f2.value ?? '';
-      result.value = String(v1) + String(v2);
-      try { tg?.HapticFeedback?.impactOccurred?.('light'); } catch(e){}
-    });
+        // Отправляем сырой initData на сервер для проверки подписи
+        const res = await fetch('/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ initData: tg.initData })
+        });
+        const data = await res.json();
+        if (!data?.ok) {
+          return deny('Проверка подписи не пройдена.');
+        }
+
+        // Оформляем тему
+        const card = document.getElementById('card');
+        const bg = tg.themeParams?.bg_color || '#ffffff';
+        const txt = tg.themeParams?.text_color || '#000000';
+        const btn = tg.themeParams?.button_color || '#2ea6ff';
+        const btnTxt = tg.themeParams?.button_text_color || '#ffffff';
+        document.body.style.background = bg;
+        card.style.background = tg.themeParams?.secondary_bg_color || '#f6f6f6';
+        card.style.color = txt;
+
+        const nextBtn = document.getElementById('next');
+        nextBtn.style.background = btn;
+        nextBtn.style.color = btnTxt;
+
+        // Показываем приложение
+        $forbidden.style.display = 'none';
+        $app.style.display = 'flex';
+
+        // Логика калькулятора — без sendData, всё внутри окна
+        const f1 = document.getElementById('f1');
+        const f2 = document.getElementById('f2');
+        const result = document.getElementById('result');
+
+        nextBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const out = String(f1.value ?? '') + String(f2.value ?? '');
+          result.value = out;
+          try { tg?.HapticFeedback?.impactOccurred?.('light'); } catch(e){}
+        });
+      } catch (e) {
+        deny('Внутренняя ошибка проверки доступа.');
+      }
+    }
+    bootstrap();
   </script>
 </body>
 </html>
