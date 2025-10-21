@@ -21,7 +21,7 @@
 <body>
   <div id="forbidden" class="forbidden">
     <h2>Проверка доступа…</h2>
-    <p>Если это окно не исчезает, откройте страницу из Telegram.</p>
+    <p>Эта страница должна открываться только из Telegram.</p>
   </div>
 
   <div id="app" class="wrap">
@@ -34,14 +34,11 @@
       <button id="next">Далее</button>
       <label for="result" style="margin-top:18px">Результат</label>
       <input id="result" type="text" placeholder="Здесь появится ответ" readonly />
-      <div class="hint">Ответ формируется как конкатенация двух верхних полей.</div>
+      <div class="hint">Ответ = конкатенация двух верхних полей.</div>
     </div>
   </div>
 
   <script>
-    // ВСТАВЬ СВОЙ URL воркера:
-    const AUTH_URL = "https://YOUR-WORKER-SUBDOMAIN.workers.dev/auth";
-
     const tg = window.Telegram?.WebApp;
     const $forbidden = document.getElementById('forbidden');
     const $app = document.getElementById('app');
@@ -52,52 +49,43 @@
       $forbidden.innerHTML = '<h2>403 — доступ запрещён</h2><p>' + (msg || 'Откройте эту страницу из Telegram.') + '</p>';
     }
 
-    async function start() {
-      if (!tg || typeof tg.initData !== 'string' || !tg.initData.length) {
-        return deny('Эта страница работает только внутри Telegram WebApp.');
+    (function init() {
+      // МЯГКАЯ защита: без Telegram WebApp — отлуп
+      if (!tg || typeof tg.initData !== 'string') {
+        return deny('Страница доступна только из Telegram WebApp.');
       }
+      try { tg.ready?.(); tg.expand?.(); tg.disableVerticalSwipes?.(); } catch(e){}
+
+      // Оформляем тему
       try {
-        tg.ready?.(); tg.expand?.(); tg.disableVerticalSwipes?.();
-
-        // Просим бекенд подтвердить подпись initData для ИМЕННО этого бота
-        const res = await fetch(AUTH_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ initData: tg.initData })
-        });
-        const data = await res.json();
-        if (!data?.ok) return deny('Проверка подписи не пройдена.');
-
-        // Оформление темы
         const card = document.getElementById('card');
-        const bg = tg.themeParams?.bg_color || '#fff';
-        const txt = tg.themeParams?.text_color || '#000';
+        const bg = tg.themeParams?.bg_color || '#ffffff';
+        const txt = tg.themeParams?.text_color || '#000000';
         const btn = tg.themeParams?.button_color || '#2ea6ff';
-        const btnTxt = tg.themeParams?.button_text_color || '#fff';
+        const btnTxt = tg.themeParams?.button_text_color || '#ffffff';
         document.body.style.background = bg;
         card.style.background = tg.themeParams?.secondary_bg_color || '#f6f6f6';
         card.style.color = txt;
+
         const nextBtn = document.getElementById('next');
         nextBtn.style.background = btn; nextBtn.style.color = btnTxt;
+      } catch(e){}
 
-        // Показываем приложение
-        $forbidden.style.display = 'none';
-        $app.style.display = 'flex';
+      // Показываем приложение
+      $forbidden.style.display = 'none';
+      $app.style.display = 'flex';
 
-        // Логика калькулятора — всё внутри окна, без sendData
-        const f1 = document.getElementById('f1');
-        const f2 = document.getElementById('f2');
-        const result = document.getElementById('result');
-        nextBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          result.value = String(f1.value ?? '') + String(f2.value ?? '');
-          try { tg?.HapticFeedback?.impactOccurred?.('light'); } catch(e){}
-        });
-      } catch (e) {
-        deny('Внутренняя ошибка проверки доступа.');
-      }
-    }
-    start();
+      // Логика калькулятора — только внутри окна
+      const f1 = document.getElementById('f1');
+      const f2 = document.getElementById('f2');
+      const result = document.getElementById('result');
+      const next = document.getElementById('next');
+      next.addEventListener('click', (e) => {
+        e.preventDefault();
+        result.value = String(f1.value ?? '') + String(f2.value ?? '');
+        try { tg?.HapticFeedback?.impactOccurred?.('light'); } catch(e){}
+      });
+    })();
   </script>
 </body>
 </html>
