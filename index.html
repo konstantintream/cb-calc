@@ -21,7 +21,7 @@
 <body>
   <div id="forbidden" class="forbidden">
     <h2>Проверка доступа…</h2>
-    <p>Если видите это сообщение более 3 секунд, попробуйте открыть из Telegram ещё раз.</p>
+    <p>Если это окно не исчезает, откройте страницу из Telegram.</p>
   </div>
 
   <div id="app" class="wrap">
@@ -39,75 +39,65 @@
   </div>
 
   <script>
+    // ВСТАВЬ СВОЙ URL воркера:
+    const AUTH_URL = "https://YOUR-WORKER-SUBDOMAIN.workers.dev/auth";
+
     const tg = window.Telegram?.WebApp;
     const $forbidden = document.getElementById('forbidden');
     const $app = document.getElementById('app');
 
-    // Функция оформления 403
     function deny(msg) {
       $app.style.display = 'none';
       $forbidden.style.display = 'block';
-      $forbidden.innerHTML = `<h2>403 — доступ запрещён</h2><p>${msg || 'Откройте эту страницу из Telegram.'}</p>`;
+      $forbidden.innerHTML = '<h2>403 — доступ запрещён</h2><p>' + (msg || 'Откройте эту страницу из Telegram.') + '</p>';
     }
 
-    async function bootstrap() {
+    async function start() {
       if (!tg || typeof tg.initData !== 'string' || !tg.initData.length) {
         return deny('Эта страница работает только внутри Telegram WebApp.');
       }
       try {
         tg.ready?.(); tg.expand?.(); tg.disableVerticalSwipes?.();
-        // Небольшая защита от зависания
-        setTimeout(() => {
-          if ($app.style.display !== 'flex') {
-            deny('Не удалось подтвердить доступ. Повторите из Telegram.');
-          }
-        }, 4000);
 
-        // Отправляем сырой initData на сервер для проверки подписи
-        const res = await fetch('/auth', {
+        // Просим бекенд подтвердить подпись initData для ИМЕННО этого бота
+        const res = await fetch(AUTH_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ initData: tg.initData })
         });
         const data = await res.json();
-        if (!data?.ok) {
-          return deny('Проверка подписи не пройдена.');
-        }
+        if (!data?.ok) return deny('Проверка подписи не пройдена.');
 
-        // Оформляем тему
+        // Оформление темы
         const card = document.getElementById('card');
-        const bg = tg.themeParams?.bg_color || '#ffffff';
-        const txt = tg.themeParams?.text_color || '#000000';
+        const bg = tg.themeParams?.bg_color || '#fff';
+        const txt = tg.themeParams?.text_color || '#000';
         const btn = tg.themeParams?.button_color || '#2ea6ff';
-        const btnTxt = tg.themeParams?.button_text_color || '#ffffff';
+        const btnTxt = tg.themeParams?.button_text_color || '#fff';
         document.body.style.background = bg;
         card.style.background = tg.themeParams?.secondary_bg_color || '#f6f6f6';
         card.style.color = txt;
-
         const nextBtn = document.getElementById('next');
-        nextBtn.style.background = btn;
-        nextBtn.style.color = btnTxt;
+        nextBtn.style.background = btn; nextBtn.style.color = btnTxt;
 
         // Показываем приложение
         $forbidden.style.display = 'none';
         $app.style.display = 'flex';
 
-        // Логика калькулятора — без sendData, всё внутри окна
+        // Логика калькулятора — всё внутри окна, без sendData
         const f1 = document.getElementById('f1');
         const f2 = document.getElementById('f2');
         const result = document.getElementById('result');
-
         nextBtn.addEventListener('click', (e) => {
           e.preventDefault();
-          const out = String(f1.value ?? '') + String(f2.value ?? '');
-          result.value = out;
+          result.value = String(f1.value ?? '') + String(f2.value ?? '');
           try { tg?.HapticFeedback?.impactOccurred?.('light'); } catch(e){}
         });
       } catch (e) {
         deny('Внутренняя ошибка проверки доступа.');
       }
     }
-    bootstrap();
+    start();
   </script>
 </body>
 </html>
